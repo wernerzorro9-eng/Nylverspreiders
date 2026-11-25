@@ -123,6 +123,7 @@ details.row .rb{padding:2px 2px 16px}
 @media(prefers-reduced-motion:reduce){.mk{transition:none}}
 @media(max-width:760px){.main{grid-template-columns:minmax(0,1fr)}.inp{position:static;max-height:none}}
 @media(max-width:420px){.strip{grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;padding:10px}.pad i{height:44px}.pad b{font-size:13px}}
+@media(max-width:480px){.brand{gap:12px}.brand img{height:clamp(54px,15vw,66px)}.top h1{font-size:clamp(24px,7.2vw,30px);padding-right:10px;min-width:0}}
 </style>
 </head>
 <body>
@@ -139,17 +140,10 @@ details.row .rb{padding:2px 2px 16px}
 <main class="band"><div class="wrap main">
   <section class="inp" aria-labelledby="ih">
     <h2 id="ih">Laboratoriumwaardes</h2>
-    <p class="note" id="sample">Voorbeeldwaardes is ingevul. Tik jou eie waardes oor hulle, of neem 'n foto van die verslag.</p>
-    <div class="scan" id="scan">
-      <div class="scanbtns"><label class="btn pri" for="photo"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>Neem foto van verslag</label><label class="btn" for="photo2"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 17l-5-5-9 8"/></svg>Kies uit galery</label></div>
-      <input type="file" id="photo" accept="image/*" capture="environment">
-      <input type="file" id="photo2" accept="image/*">
-      <p id="scanmsg" aria-live="polite"></p>
-    </div>
+    <p class="note" id="sample">Tik die waardes van jou laboratoriumverslag in.</p>
     <div id="fields"></div>
     <div class="btns">
       <button class="btn pri" id="copy" type="button">Kopieer opsomming</button>
-      <button class="btn" id="ex" type="button">Voorbeeld</button>
       <button class="btn" id="clr" type="button">Maak skoon</button>
     </div>
     <div id="copied" aria-live="polite"></div>
@@ -303,7 +297,7 @@ const $=id=>document.getElementById(id);
 const fmt=n=>{if(!isFinite(n))return'';const a=Math.abs(n);const d=a<1?2:a<10?1:0;return(+n.toFixed(d)).toString().replace('.',',')};
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 let sys='spil',crop=1,vals={};
-const KEY='waterontleding2';
+const KEY='waterontleding3';
 const save=()=>{try{localStorage.setItem(KEY,JSON.stringify({sys,crop,vals}))}catch(e){}};
 const load=()=>{try{const s=JSON.parse(localStorage.getItem(KEY)||'null');if(s&&s.vals){sys=s.sys||'spil';crop=+s.crop||0;vals=s.vals;return true}}catch(e){}return false};
 const num=id=>{const r=(vals[id]??'').toString().trim().replace(',','.');if(r==='')return NaN;const n=parseFloat(r);return isFinite(n)?n:NaN};
@@ -344,7 +338,7 @@ function evalAll(){
 }
 function renderFields(){
  $('fields').innerHTML=GRP.map((g,gi)=>`<h3>${g}</h3>`+IN.filter(f=>f.grp===gi).map(f=>`<div class="f"><label for="in-${f.id}">${f.n}</label><input id="in-${f.id}" class="num" inputmode="decimal" enterkeyhint="next" autocomplete="off" value="${esc(vals[f.id]??'')}"><small>${f.u}</small></div>`).join('')).join('');
- IN.forEach(f=>$('in-'+f.id).addEventListener('input',e=>{vals[f.id]=e.target.value;$('sample').hidden=true;update()}));
+ IN.forEach(f=>$('in-'+f.id).addEventListener('input',e=>{vals[f.id]=e.target.value;update()}));
  const all=[...document.querySelectorAll('input.num')];
  all[all.length-1].setAttribute('enterkeyhint','done');
  all.forEach((el,i)=>{
@@ -448,8 +442,7 @@ function update(){
 $('sys').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;sys=b.dataset.k;renderSys();renderCrops();update()});
 $('crop').addEventListener('change',e=>{crop=+e.target.value;update()});
 const fillEx=()=>{vals={};IN.forEach(f=>vals[f.id]=String(f.ex).replace('.',','))};
-$('ex').addEventListener('click',()=>{fillEx();renderFields();$('sample').hidden=false;update()});
-$('clr').addEventListener('click',()=>{vals={};renderFields();$('sample').hidden=true;update()});
+$('clr').addEventListener('click',()=>{vals={};renderFields();update()});
 $('copy').addEventListener('click',()=>{
  const R=evalAll();const who=crop&&sys!=='spuit'?' – '+cropName():'';
  const txt=['Waterontleding – '+SYS.find(s=>s.k===sys).n+who,$('verdict').textContent,...(wilLine()?['Wilcox-klas: '+wilLine()]:[]),'',...R.filter(r=>r.l!=='x').map(r=>`${r.p.s}: ${fmt(r.v)}${r.p.u?' '+r.p.u:''} – ${LV[r.l]}${r.l!=='g'?'. '+r.txt+' Doen: '+r.act:''}`),'','Grense: DWAF SA Waterkwaliteitsriglyne Vol. 4 (1996).'].join('\n');
@@ -483,7 +476,7 @@ async function shrink(file){
  return await new Promise(r=>c.toBlob(r,'image/jpeg',0.85));
 }
 let sampler=null,busy=false;
-const msg=(t,err)=>{$('scanmsg').textContent=t;$('scanmsg').className=err?'err':''};
+const msg=()=>{};
 async function getSampler(){
  if(sampler)return sampler;
  try{let CL=null;if(window.claude?.use)CL=window.claude;else{try{if(window.parent!==window&&window.parent.claude?.use)CL=window.parent.claude}catch(e){}}
@@ -506,15 +499,15 @@ const onPhoto=async e=>{
   IN.forEach(f=>{const v=w[f.id];if(typeof v==='number'&&isFinite(v)){vals[f.id]=String(+v.toFixed(3)).replace('.',',');got.push(f.id)}else if(typeof v==='string'&&v.trim()!==''&&isFinite(parseFloat(v.replace(',','.')))){vals[f.id]=v.trim().replace('.',',');got.push(f.id)}});
   if(!got.length){msg('Ek kon geen waardes op die foto lees nie. Probeer \'n skerper foto, reguit van bo.',true);return}
   IN.forEach(f=>{if(!got.includes(f.id))vals[f.id]=f.id==='t'?'25':''});
-  renderFields();$('sample').hidden=true;update();
+  renderFields();update();
   got.forEach(id=>$('in-'+id).classList.add('got'));
   msg(`${got.length} waardes ingevul (oranje rame). Kyk asseblief elkeen na teen die verslag.${data.nota?' '+data.nota:''}`);
  }catch(err){
   msg(err&&err.code==='rate_limited'?'Te veel versoeke; probeer oor \'n minuut weer.':err&&err.code==='not_granted'?'Toestemming om die foto te lees is nie gegee nie.':'Kon nie die foto lees nie. Probeer weer of tik die waardes in.',true);
  }finally{busy=false}
 };
-$('photo').addEventListener('change',onPhoto);$('photo2').addEventListener('change',onPhoto);
-if(!load())fillEx();else $('sample').hidden=true;
+
+load();
 renderSys();renderCrops();renderFields();update();
 }
 </script>
